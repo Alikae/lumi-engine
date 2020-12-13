@@ -1,11 +1,11 @@
 mod vertex;
 mod gfx_engine;
-use gfx_engine::Gfx;
 mod controller;
 mod physics_engine;
-use physics_engine::Physics;
-
 mod game;
+
+use gfx_engine::Gfx;
+use physics_engine::Physics;
 use game::Game;
 
 fn init_gfx_data(gfx: &mut Gfx) {
@@ -19,9 +19,9 @@ fn init_gfx_data(gfx: &mut Gfx) {
 }
 
 fn init_game_data(game: &mut Game) {
-    game.create_object(0, 0, (1., 1.));
-    for _i in 0..500 {
-        game.create_object(1, 0, (0., 0.));
+    game.create_object(0, 0, (1., 1.), 0.5);
+    for _i in 0..1000 {
+        game.create_object(1, 0, (0., 0.), 2. - _i as f32 / 500.);
     }
 }
 

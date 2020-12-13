@@ -96,7 +96,6 @@ impl Gfx {
         let animation_sets: Vec<AnimationSet> = Vec::new();
         let textures: Vec<Texture
                 <GL33, Dim2, NormRGBA8UI>> = Vec::new();
-        
         Gfx {
             surface,
             back_buffer,
@@ -212,12 +211,12 @@ pub fn _render_frame(&mut self, camera: [f32; 3]) {
 }
 
 impl AnimatedSprite {
-    pub fn update_tess_pos(&mut self, pos: (f32, f32)) {
+    pub fn update_tess_pos(&mut self, pos: (f32, f32), size: f32) {
         let mut vertices = self.tess.vertices_mut().unwrap();
         vertices[0].position = VertexPosition::new([pos.0, pos.1]);
-        vertices[1].position = VertexPosition::new([pos.0 + 1., pos.1]);
-        vertices[2].position = VertexPosition::new([pos.0 + 1., pos.1 + 1.]);
-        vertices[3].position = VertexPosition::new([pos.0, pos.1 + 1.]);
+        vertices[1].position = VertexPosition::new([pos.0 + size, pos.1]);
+        vertices[2].position = VertexPosition::new([pos.0 + size, pos.1 + size]);
+        vertices[3].position = VertexPosition::new([pos.0, pos.1 + size]);
     }
 }
 
