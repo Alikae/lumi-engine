@@ -76,8 +76,8 @@ pub struct FrameUV {
     ymax:                   f32,
 }
 
-const VS_STR: &str = include_str!("vs.glsl");
-const FS_STR: &str = include_str!("fs.glsl");
+const VS_STR: &str = include_str!("../shaders/vs.glsl");
+const FS_STR: &str = include_str!("../shaders/fs.glsl");
 
 #[allow(dead_code)]
 impl Gfx {
