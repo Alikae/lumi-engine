@@ -37,3 +37,4 @@ pub const VERTICES: [Vertex; 4] = [
         VertexTexpos::new([0., 1.]),
     ),
 ];
+

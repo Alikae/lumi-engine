@@ -4,7 +4,6 @@ pub struct Physics {
 
 pub struct PhysicObject {
     pub pos:            (f32, f32),
-    pub sprite_index:   usize,
 }
 
 impl Physics {
@@ -13,24 +12,28 @@ impl Physics {
             objects: Vec::new(),
         }
     }
+
+    pub fn add_object(&mut self, pos: (f32, f32))-> usize {
+        self.objects.push(PhysicObject::new(pos));
+        self.objects.len() - 1
+    }
 }
 
 impl PhysicObject {
-    pub fn new(pos: (f32, f32), sprite_index: usize)-> PhysicObject {
+    pub fn new(pos: (f32, f32))-> PhysicObject {
         PhysicObject {
             pos,
-            sprite_index,
         }
     }
 
     //pub fn update() {
-
     //}
 
-    //pub fn collide_with_one()
+    //pub fn collide_with()
 
 //    fn update_gfx(&self) {
         // take vertices_mut
         // set them to actual pos
 //    }
 }
+

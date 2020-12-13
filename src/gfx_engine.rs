@@ -140,6 +140,7 @@ impl Gfx {
         self.animated_sprites.len() - 1
     }
 
+// TODO TODO
     pub fn update_sprites(&mut self, frame_time: f32) {
         // each sprite should have its own timer ?
         self.timer += frame_time;
@@ -184,16 +185,11 @@ pub fn _render_frame(&mut self, camera: [f32; 3]) {
                 let bound_tex = pipeline.bind_texture(texture)?;
 
                     shd_gate.shade(&mut program, |mut interface, uni, mut rdr_gate| {
-                        // Set Uniforms
                         interface.set(&uni.camera, camera);
                         interface.set(&uni.image, bound_tex.binding());
 
-                        // Actual Render
                         let render_state = RenderState::default()
-                            // let’s disable the depth test so that every fragment (i.e. pixels) will be rendered to every
-                            // time we have to draw a part of a triangle
                             .set_depth_test(None)
-                            // set the blending we decided earlier
                             .set_blending(Blending {
                                 equation: Equation::Additive,
                                 src: Factor::SrcAlpha,
@@ -217,11 +213,11 @@ pub fn _render_frame(&mut self, camera: [f32; 3]) {
 
 impl AnimatedSprite {
     pub fn update_tess_pos(&mut self, pos: (f32, f32)) {
-                let mut vertices = self.tess.vertices_mut().unwrap();
-                vertices[0].position = VertexPosition::new([pos.0, pos.1]);
-                vertices[1].position = VertexPosition::new([pos.0 + 1., pos.1]);
-                vertices[2].position = VertexPosition::new([pos.0 + 1., pos.1 + 1.]);
-                vertices[3].position = VertexPosition::new([pos.0, pos.1 + 1.]);
+        let mut vertices = self.tess.vertices_mut().unwrap();
+        vertices[0].position = VertexPosition::new([pos.0, pos.1]);
+        vertices[1].position = VertexPosition::new([pos.0 + 1., pos.1]);
+        vertices[2].position = VertexPosition::new([pos.0 + 1., pos.1 + 1.]);
+        vertices[3].position = VertexPosition::new([pos.0, pos.1 + 1.]);
     }
 }
 
@@ -290,3 +286,4 @@ where
 
     tex
 }
+

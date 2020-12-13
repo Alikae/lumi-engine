@@ -12,3 +12,4 @@ void main() {
 
     gl_Position = vec4(new_position, 0., 1.);
 }
+

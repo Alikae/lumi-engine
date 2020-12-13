@@ -108,3 +108,4 @@ pub fn handle_input(mut game: &mut Game) {
         game.physics.objects[4].pos.0 += 0.01;
     }
 }
+
