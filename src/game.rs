@@ -3,6 +3,7 @@ use std::time::Instant;
 use super::physics_engine::{Physics};
 use super::controller::{self, Controller};
 use super::gfx_engine::Gfx;
+use super::fixed_vec::FixedVec;
 
 pub struct Game {
     pub gfx:            Gfx,
@@ -11,7 +12,7 @@ pub struct Game {
 
     pub should_stop:    bool,
     pub start_time:     Instant,
-    pub objects:        Vec<GameObject>,
+    pub objects:        FixedVec<GameObject>,
     pub camera:         [f32; 3],
 }
 
@@ -29,7 +30,7 @@ impl Game {
             controller:     Controller::new(),
             should_stop:    false,
             start_time:     Instant::now(),
-            objects:        Vec::new(),
+            objects:        FixedVec::new(),
             camera:         [1., 1., 0.5],
         }
     }
@@ -43,36 +44,44 @@ impl Game {
             println!("{} {:.4} <{:width$}>", get_framerate_color(frame_time), frame_time, "", width=(frame_time * 1000.) as usize);
             //END
             controller::handle_input(&mut self);
-            // self.physics.update()
+            self.update_engines(frame_time);
             self.connect_engines();
-            self.gfx.update_sprites(frame_time);// animations, tmp ?
-            self.gfx._render_frame(self.camera);
+            self.gfx.render_frame(self.camera);
         }
     }
 
     pub fn create_object(&mut self, texture_index: usize, animation_set_index: usize, pos: (f32, f32), size: f32)-> usize {
         let sprite_index = self.gfx.add_animated_sprite(texture_index, animation_set_index);
         let physic_index = self.physics.add_object(pos);
-        self.objects.push(GameObject {
+        self.objects.add(GameObject {
             sprite_index,
             physic_index,
             size,
-        });
-        self.objects.len() - 1
+        })
     }
 
-    fn physics_to_gfx(&mut self) {
-        for i in 0..self.objects.len() {
-            let obj = &self.objects[i];
-            self.gfx.animated_sprites[obj.sprite_index]
-                .update_tess_pos(
-                    self.physics.objects[obj.physic_index].pos,
-                    obj.size);
-        }
+    fn update_engines(&mut self, frame_time: f32) {
+        self.gfx.update_sprites(frame_time);// animations, tmp ?
+        // self.physics.update_world()
+        // erase all objects whose lifetime's over
+        //for _i in 0..self.objects.len() {
+            //if (self.objects[i].)
+        //}
     }
 
     fn connect_engines(&mut self) {
         self.physics_to_gfx();
+    }
+
+    fn physics_to_gfx(&mut self) {
+        let gfx = &mut self.gfx;
+        let physics = &mut self.physics;
+        self.objects.iter(|obj| {
+            gfx.animated_sprites.get_mut(obj.sprite_index)
+                .update_tess_pos(
+                    physics.objects.get_mut(obj.physic_index).pos,
+                    obj.size);
+        });
     }
 }
 
@@ -85,3 +94,10 @@ fn get_framerate_color(frame_time: f32)-> &'static str {
     else                            {"\x1B[34m"}
 }
 
+// TODO TODO Remove objects (Game, gfx, physic)
+// Physic update
+//      solid tiles
+//      player collide with them
+//      gravity
+//      jump
+// Ui debug

@@ -3,6 +3,7 @@ mod gfx_engine;
 mod controller;
 mod physics_engine;
 mod game;
+mod fixed_vec;
 
 use gfx_engine::Gfx;
 use physics_engine::Physics;
@@ -20,8 +21,8 @@ fn init_gfx_data(gfx: &mut Gfx) {
 
 fn init_game_data(game: &mut Game) {
     game.create_object(0, 0, (1., 1.), 0.5);
-    for _i in 0..1000 {
-        game.create_object(1, 0, (0., 0.), 2. - _i as f32 / 500.);
+    for _i in 0..500 {
+        game.create_object(0, 0, (0., 0.), 2. - (100 - _i) as f32 / 500.);
     }
 }
 

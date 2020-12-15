@@ -21,7 +21,7 @@ use luminance_glfw::GlfwSurface;
 use luminance_windowing::{WindowDim, WindowOpt};
 
 use super::vertex;
-#[allow(unused_imports)]
+use super::fixed_vec::FixedVec;
 use vertex::{VERTICES, VertexSemantics, VertexTexpos, VertexPosition};
 
 
@@ -29,23 +29,23 @@ use vertex::{VERTICES, VertexSemantics, VertexTexpos, VertexPosition};
 #[derive(UniformInterface)]
 #[allow(dead_code)]
 struct ShaderInterface {
-    image:              Uniform<TextureBinding<Dim2, NormUnsigned>>,
-    camera:              Uniform<[f32; 3]>,
+    image:                  Uniform<TextureBinding<Dim2, NormUnsigned>>,
+    camera:                 Uniform<[f32; 3]>,
 }
 // END TMP
 
 #[allow(dead_code)]
 pub struct Gfx {
-    pub surface:        GlfwSurface,
-    back_buffer:    luminance::framebuffer::Framebuffer
-            <luminance_gl::gl33::GL33, luminance::texture::Dim2, (), ()>,
-    program:        Program<GL33, VertexSemantics, (), ShaderInterface>,
+    pub surface:            GlfwSurface,
+    back_buffer:            luminance::framebuffer::Framebuffer
+                                <luminance_gl::gl33::GL33, luminance::texture::Dim2, (), ()>,
+    program:                Program<GL33, VertexSemantics, (), ShaderInterface>,
 
-    pub animated_sprites:   Vec<AnimatedSprite>,
-    animation_sets:     Vec<AnimationSet>,
-    textures:           Vec<luminance::texture::Texture
-            <GL33, luminance::texture::Dim2, NormRGBA8UI>>,
-    timer:              f32, // NOT SURE RN
+    pub animated_sprites:   FixedVec<AnimatedSprite>,
+    animation_sets:         Vec<AnimationSet>,
+    textures:               Vec<luminance::texture::Texture
+                                <GL33, luminance::texture::Dim2, NormRGBA8UI>>,
+    timer:                  f32, // TO REMOVE
 }
 
 #[allow(dead_code)]
@@ -92,7 +92,7 @@ impl Gfx {
             .unwrap()
             .ignore_warnings();
         // Sprites
-        let animated_sprites: Vec<AnimatedSprite> = Vec::new();
+        let animated_sprites: FixedVec<AnimatedSprite> = FixedVec::new();
         let animation_sets: Vec<AnimationSet> = Vec::new();
         let textures: Vec<Texture
                 <GL33, Dim2, NormRGBA8UI>> = Vec::new();
@@ -128,15 +128,14 @@ impl Gfx {
             .set_mode(Mode::TriangleFan)
             .build()
             .unwrap();
-        self.animated_sprites.push(AnimatedSprite {
+        self.animated_sprites.add(AnimatedSprite {
             tess,
             texture_index,
             animation_set_index,
             selected_animation: 0,
             animation_frame: 0,
             frame_timer: 0.,
-        });
-        self.animated_sprites.len() - 1
+        })
     }
 
 // TODO TODO
@@ -146,47 +145,48 @@ impl Gfx {
         if self.timer > 1. / 12. {
             self.timer -= 1. / 12.;
             let sprites = &mut self.animated_sprites;
-            for i in 0..sprites.len() {
-                let frames_uv = &self.animation_sets[
-                    sprites[i].animation_set_index
+            let animation_sets = &mut self.animation_sets;
+            sprites.iter(|s: &mut AnimatedSprite| {
+                let frames_uv = &animation_sets[
+                    s.animation_set_index
                 ].animations[
-                    sprites[i].selected_animation
+                    s.selected_animation
                 ].frames_uv;
-                sprites[i].animation_frame = (sprites[i].animation_frame + 1) % frames_uv.len();
-                let f = &frames_uv[sprites[i].animation_frame];
+                s.animation_frame = (s.animation_frame + 1) % frames_uv.len();
+                let f = &frames_uv[s.animation_frame];
                 // Update sprite tess
-                let mut vertices = sprites[i].tess.vertices_mut().unwrap();
+                let mut vertices = s.tess.vertices_mut().unwrap();
                 vertices[0].texpos = VertexTexpos::new([f.xmin, f.ymin]);
                 vertices[1].texpos = VertexTexpos::new([f.xmax, f.ymin]);
                 vertices[2].texpos = VertexTexpos::new([f.xmax, f.ymax]);
                 vertices[3].texpos = VertexTexpos::new([f.xmin, f.ymax]);
-            }
+            })
         }
     }
 
 // TODO TODO TODO
-pub fn _render_frame(&mut self, camera: [f32; 3]) {
+pub fn render_frame(&mut self, camera: [f32; 3]) {
     let gfx = self;
-    let mut program = &mut gfx.program;
+    let program = &mut gfx.program;
     let sprites = &mut gfx.animated_sprites;
     let surface = &mut gfx.surface;
     let back_buffer = &mut gfx.back_buffer;
     let textures = &mut gfx.textures;
 
     let render = surface.new_pipeline_gate().pipeline(
-            &back_buffer,
-            &PipelineState::default().set_clear_color([0.7, 0.7, 0.7, 0.]),
-            |pipeline, mut shd_gate| {
-
-            for i in 0..sprites.len() { // For all Sprites
+        &back_buffer,
+        &PipelineState::default().set_clear_color([0.7, 0.7, 0.7, 0.]),
+        |pipeline, mut shd_gate| {
+            sprites.iter(|s: &mut AnimatedSprite| {
                 // Bind the texture to GPU
-                let texture = &mut textures[sprites[i].texture_index];
-                let bound_tex = pipeline.bind_texture(texture)?;
-
-                    shd_gate.shade(&mut program, |mut interface, uni, mut rdr_gate| {
+                let texture = &mut textures[s.texture_index];
+                let bound_tex = pipeline.bind_texture(texture).unwrap();
+                ||->Result<(), ()> {// To silent the type error from shd_gate.shade
+                    shd_gate.shade(program, |mut interface, uni, mut rdr_gate| {
                         interface.set(&uni.camera, camera);
                         interface.set(&uni.image, bound_tex.binding());
 
+//pass render state via gfx
                         let render_state = RenderState::default()
                             .set_depth_test(None)
                             .set_blending(Blending {
@@ -195,12 +195,15 @@ pub fn _render_frame(&mut self, camera: [f32; 3]) {
                                 dst: Factor::SrcAlphaComplement,
                             });
                         rdr_gate.render(&render_state, |mut tess_gate| {
-                            tess_gate.render(&sprites[i].tess)
+                            tess_gate.render(&s.tess)
                         })
                     })?;
-            }
+                    Ok(())
+                }().unwrap();
+            });
             Ok(())
-                }).assume();
+        }
+    ).assume();
     if !render.is_ok() {
         println!("RENDER NOT OK");
         std::process::exit(44);
@@ -250,7 +253,7 @@ impl Animation {
 // UTILS remove pub
 
 fn create_window()-> GlfwSurface {
-    let dim = WindowDim::Windowed { width: 960, height: 540 };
+    let dim = WindowDim::Windowed { width: 1920, height: 1080 };
     GlfwSurface::new_gl33("Luminance, BITCHES!", WindowOpt::default().set_dim(dim)).unwrap()
 }
 

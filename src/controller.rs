@@ -96,16 +96,16 @@ pub fn handle_input(mut game: &mut Game) {
     }
 
     if c.up {
-        game.physics.objects[0].pos.1 += 0.01;
+        game.physics.objects.get_mut(0).pos.1 += 0.01;
     }
     if c.down {
-        game.physics.objects[2].pos.1 -= 0.01;
+        game.physics.objects.get_mut(2).pos.1 -= 0.01;
     }
     if c.left {
-        game.physics.objects[3].pos.0 -= 0.01;
+        game.physics.objects.get_mut(3).pos.0 -= 0.01;
     }
     if c.right {
-        game.physics.objects[4].pos.0 += 0.01;
+        game.physics.objects.get_mut(4).pos.0 += 0.01;
     }
 }
 
