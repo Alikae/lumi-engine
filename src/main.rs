@@ -21,8 +21,8 @@ fn init_gfx_data(gfx: &mut Gfx) {
 
 fn init_game_data(game: &mut Game) {
     game.create_object(0, 0, (1., 1.), 0.5);
-    for _i in 0..500 {
-        game.create_object(0, 0, (0., 0.), 2. - (100 - _i) as f32 / 500.);
+    for _i in 0..100 {
+        game.create_object(0, 0, (0., 0.), 2. - (100 - _i as isize) as f32 / 500.);
     }
 }
 

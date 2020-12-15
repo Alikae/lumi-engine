@@ -4,7 +4,6 @@ use std::path::Path;
 use glfw::Context as _; // For use swap_buffers (Context Trait)
 
 use luminance::UniformInterface;
-use luminance::backend::texture::Texture as TextureBackend;
 use luminance::blending::{Blending, Equation, Factor};
 use luminance::context::GraphicsContext;
 use luminance::pipeline::PipelineState;
@@ -14,16 +13,20 @@ use luminance::render_state::RenderState;
 use luminance::shader::Program;
 use luminance::shader::Uniform;
 use luminance::tess::Mode;
-use luminance::texture::{Dim2, GenMipmaps, Sampler, Texture};
-use luminance::texture::{Wrap, MinFilter, MagFilter};
+use luminance::texture::{Dim2, Texture};
 use luminance_gl::GL33;
 use luminance_glfw::GlfwSurface;
-use luminance_windowing::{WindowDim, WindowOpt};
 
 use super::vertex;
 use super::fixed_vec::FixedVec;
-use vertex::{VERTICES, VertexSemantics, VertexTexpos, VertexPosition};
+use vertex::{VERTICES, VertexSemantics};
 
+mod utils;
+use utils::{create_window, read_image, load_from_disk};
+
+mod animation;
+use animation::{AnimatedSprite, AnimationSet};
+pub use animation::{Animation};
 
 // TMP HERE
 #[derive(UniformInterface)]
@@ -45,35 +48,6 @@ pub struct Gfx {
     animation_sets:         Vec<AnimationSet>,
     textures:               Vec<luminance::texture::Texture
                                 <GL33, luminance::texture::Dim2, NormRGBA8UI>>,
-    timer:                  f32, // TO REMOVE
-}
-
-#[allow(dead_code)]
-pub struct AnimatedSprite {
-    tess:                   luminance::tess::Tess<GL33, vertex::Vertex>,
-    texture_index:          usize,
-    animation_set_index:    usize,
-    selected_animation:     usize,
-    animation_frame:        usize,
-    frame_timer:            f32,
-}
-
-#[allow(dead_code)]
-struct AnimationSet {
-    animations:             Vec<Animation>,
-}
-
-#[allow(dead_code)]
-pub struct Animation {
-    frames_uv:              Vec<FrameUV>,
-}
-
-#[allow(dead_code)]
-pub struct FrameUV {
-    xmin:                   f32,
-    xmax:                   f32,
-    ymin:                   f32,
-    ymax:                   f32,
 }
 
 const VS_STR: &str = include_str!("../shaders/vs.glsl");
@@ -82,16 +56,13 @@ const FS_STR: &str = include_str!("../shaders/fs.glsl");
 #[allow(dead_code)]
 impl Gfx {
     pub fn new()-> Gfx {
-        // Window
         let mut surface = create_window();
         let back_buffer = surface.back_buffer().unwrap();
-        // Shader Program
         let program = surface
             .new_shader_program::<VertexSemantics, (), ShaderInterface>()
             .from_strings(VS_STR, None, None, FS_STR)
             .unwrap()
             .ignore_warnings();
-        // Sprites
         let animated_sprites: FixedVec<AnimatedSprite> = FixedVec::new();
         let animation_sets: Vec<AnimationSet> = Vec::new();
         let textures: Vec<Texture
@@ -103,7 +74,6 @@ impl Gfx {
             animated_sprites,
             animation_sets,
             textures,
-            timer: 0.,
         }
     }
 
@@ -121,32 +91,27 @@ impl Gfx {
     }
 
     pub fn add_animated_sprite(&mut self, texture_index: usize, animation_set_index: usize)-> usize {
-        // handle remove !!!
-        // Array of "freed" ?
         let tess = self.surface.new_tess()
             .set_vertices(VERTICES)
             .set_mode(Mode::TriangleFan)
             .build()
             .unwrap();
-        self.animated_sprites.add(AnimatedSprite {
+        self.animated_sprites.add(AnimatedSprite::new(
             tess,
             texture_index,
             animation_set_index,
-            selected_animation: 0,
-            animation_frame: 0,
-            frame_timer: 0.,
-        })
+        ))
     }
 
 // TODO TODO
     pub fn update_sprites(&mut self, frame_time: f32) {
-        // each sprite should have its own timer ?
-        self.timer += frame_time;
-        if self.timer > 1. / 12. {
-            self.timer -= 1. / 12.;
-            let sprites = &mut self.animated_sprites;
-            let animation_sets = &mut self.animation_sets;
-            sprites.iter(|s: &mut AnimatedSprite| {
+        // MOVE TO ANIMATION
+        let sprites = &mut self.animated_sprites;
+        let animation_sets = &mut self.animation_sets;
+        sprites.iter(|s: &mut AnimatedSprite| {
+            s.frame_timer += frame_time;
+            if s.frame_timer > 1. / 12. {
+                s.frame_timer -= 1. / 12.;
                 let frames_uv = &animation_sets[
                     s.animation_set_index
                 ].animations[
@@ -154,14 +119,9 @@ impl Gfx {
                 ].frames_uv;
                 s.animation_frame = (s.animation_frame + 1) % frames_uv.len();
                 let f = &frames_uv[s.animation_frame];
-                // Update sprite tess
-                let mut vertices = s.tess.vertices_mut().unwrap();
-                vertices[0].texpos = VertexTexpos::new([f.xmin, f.ymin]);
-                vertices[1].texpos = VertexTexpos::new([f.xmax, f.ymin]);
-                vertices[2].texpos = VertexTexpos::new([f.xmax, f.ymax]);
-                vertices[3].texpos = VertexTexpos::new([f.xmin, f.ymax]);
-            })
-        }
+                s.update_tess_texpos(f);
+            }
+        })
     }
 
 // TODO TODO TODO
@@ -211,81 +171,5 @@ pub fn render_frame(&mut self, camera: [f32; 3]) {
     gfx.surface.window.swap_buffers();
 }
 // TODO END TODO END TODO
-}
-
-impl AnimatedSprite {
-    pub fn update_tess_pos(&mut self, pos: (f32, f32), size: f32) {
-        let mut vertices = self.tess.vertices_mut().unwrap();
-        vertices[0].position = VertexPosition::new([pos.0, pos.1]);
-        vertices[1].position = VertexPosition::new([pos.0 + size, pos.1]);
-        vertices[2].position = VertexPosition::new([pos.0 + size, pos.1 + size]);
-        vertices[3].position = VertexPosition::new([pos.0, pos.1 + size]);
-    }
-}
-
-#[allow(dead_code)]
-impl Animation {
-    pub fn new()-> Animation {
-        Animation {
-            frames_uv: Vec::new(),
-        }
-    }
-
-    pub fn add_frame_uv(&mut self, xmin: f32, xmax: f32, ymin: f32, ymax: f32) {
-        self.frames_uv.push(FrameUV {
-            xmin,
-            xmax,
-            ymin,
-            ymax,
-        });
-    }
-    
-    pub fn auto_split_4(&mut self) {
-        self.add_frame_uv(0., 0.5, 0.5, 1.);
-        self.add_frame_uv(0.5, 1., 0.5, 1.);
-        self.add_frame_uv(0., 0.5, 0., 0.5);
-        self.add_frame_uv(0.5, 1., 0., 0.5);
-    }
-}
-
-
-
-// UTILS remove pub
-
-fn create_window()-> GlfwSurface {
-    let dim = WindowDim::Windowed { width: 1920, height: 1080 };
-    GlfwSurface::new_gl33("Luminance, BITCHES!", WindowOpt::default().set_dim(dim)).unwrap()
-}
-
-pub fn read_image(path: &Path) -> Option<image::RgbaImage> {
-      image::open(path).map(|img| img.flipv().to_rgba8()).ok()
-}
-
-pub fn load_from_disk<B>(surface: &mut B, img: image::RgbaImage) -> Texture<B::Backend, Dim2, NormRGBA8UI>
-where
-  B: GraphicsContext,
-  B::Backend: TextureBackend<Dim2, NormRGBA8UI>,
-{
-      let (width, height) = img.dimensions();
-      let texels = img.into_raw();
-
-    // create the luminance texture; the third argument is the number of mipmaps we want (leave it
-    // to 0 for now) and the latest is the sampler to use when sampling the texels in the
-    // shader (we’ll just use the default one)
-    let mut tex = Texture::new(surface, [width, height], 0,
-        Sampler {
-            wrap_r: Wrap::ClampToEdge,
-            wrap_s: Wrap::ClampToEdge,
-            wrap_t: Wrap::ClampToEdge,
-            min_filter: MinFilter::Nearest,
-            mag_filter: MagFilter::Nearest,
-            depth_comparison: None,
-        })
-        .expect("luminance texture creation");
-
-    // the first argument disables mipmap generation (we don’t care so far)
-    tex.upload_raw(GenMipmaps::No, &texels).unwrap();
-
-    tex
 }
 

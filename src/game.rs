@@ -17,7 +17,8 @@ pub struct Game {
 }
 
 pub struct GameObject {
-    sprite_index:   usize,
+    // not pub
+    pub sprite_index:   usize,
     physic_index:   usize,
     size:           f32,
 }
